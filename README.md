@@ -34,7 +34,7 @@ A modern, intelligent writing assistant built with React that leverages AI to pr
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone  git@github.com:Kip-opp/lumina.git 
    cd lumina
    ```
 
@@ -126,6 +126,9 @@ src/
 ├── components/
 │   ├── ui/              # Reusable UI components (shadcn/ui)
 │   └── writing/         # Writing-specific components
+│       ├── SuggestionPanel.jsx  # Main suggestions interface component
+│       ├── SuggestionCard.jsx   # Individual suggestion display
+│       └── ReplyIdeas.jsx       # Reply and tone variation UI
 ├── lib/
 │   ├── ai-service.js    # AI integration logic
 │   ├── supabase.js      # Supabase client setup
@@ -135,6 +138,22 @@ src/
 │   └── WritingAssistant.jsx  # Main application page
 └── hooks/               # Custom React hooks
 ```
+
+### Key Components
+
+#### SuggestionPanel.jsx
+The core suggestions interface component that provides a comprehensive AI-powered writing assistance panel. Key architectural features include:
+
+- **Tabbed Interface**: Organizes suggestions into logical categories (All, Fixes, Rewrite, Full Reply Ideas, Tone Variations) with dynamic badge counts
+- **Intelligent Filtering**: Automatically categorizes AI suggestions by type (grammar fixes, style improvements, clarity enhancements)
+- **State Management**: Manages complex UI states including loading indicators, disabled states, and tab navigation
+- **Animation Integration**: Uses Framer Motion's AnimatePresence for smooth suggestion transitions and layout changes
+- **Responsive Design**: Implements horizontal scrolling tabs and adaptive layouts for various screen sizes
+- **User Experience**: Provides contextual empty states with examples and progressive disclosure of features based on content availability
+- **AI Integration**: Seamlessly connects to the AI service for generating reply ideas and tone variations on-demand
+- **Accessibility**: Implements proper ARIA labels, keyboard navigation, and visual feedback for all interactive elements
+
+This component serves as the primary interaction point for users to review, apply, or dismiss AI-generated suggestions, making it a critical piece of the application's user experience architecture.
 
 ## 🧪 Development
 

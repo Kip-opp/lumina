@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
-import { analyzeText, generateReplies, generateTones } from "@/lib/ai-service";
-import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { analyzeText, generateTones } from "@/lib/ai-service";
+import { logger } from "@/lib/logger";
 import Header from "../components/writing/Header";
 import TextEditor from "../components/writing/TextEditor";
 import WritingStats from "../components/writing/WritingStats";
@@ -17,22 +16,60 @@ const DEFAULT_CONTEXT = {
   outputInstructions: "",
 };
 
+function detectTone(text) {
+  if (!text.trim()) return "";
+
+  const lowerText = text.toLowerCase();
+
+  // Simple tone detection based on keywords
+  const formalWords = ['therefore', 'consequently', 'furthermore', 'moreover', 'accordingly', 'hence', 'thus', 'shall', 'hereby'];
+  const casualWords = ['hey', 'hi', 'cool', 'awesome', 'totally', 'kinda', 'sorta', 'gonna', 'wanna'];
+  const persuasiveWords = ['should', 'must', 'need to', 'important', 'essential', 'benefit', 'advantage', 'recommend'];
+  const empatheticWords = ['understand', 'feel', 'sorry', 'apologize', 'concern', 'care', 'support', 'help'];
+
+  const formalCount = formalWords.reduce((count, word) => count + (lowerText.includes(word) ? 1 : 0), 0);
+  const casualCount = casualWords.reduce((count, word) => count + (lowerText.includes(word) ? 1 : 0), 0);
+  const persuasiveCount = persuasiveWords.reduce((count, word) => count + (lowerText.includes(word) ? 1 : 0), 0);
+  const empatheticCount = empatheticWords.reduce((count, word) => count + (lowerText.includes(word) ? 1 : 0), 0);
+
+  const maxCount = Math.max(formalCount, casualCount, persuasiveCount, empatheticCount);
+
+  if (maxCount === 0) return "Neutral";
+
+  if (formalCount === maxCount) return "Formal";
+  if (casualCount === maxCount) return "Casual";
+  if (persuasiveCount === maxCount) return "Persuasive";
+  if (empatheticCount === maxCount) return "Empathetic";
+
+  return "Neutral";
+}
+
 export default function WritingAssistant() {
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [score, setScore] = useState(null);
   const [writingContext, setWritingContext] = useState(DEFAULT_CONTEXT);
-  const [replies, setReplies] = useState([]);
-  const [isGeneratingReplies, setIsGeneratingReplies] = useState(false);
+  // Removed replies generation from center panel - now handled in SuggestionPanel tabs
   const [toneVariations, setToneVariations] = useState([]);
   const [isGeneratingTones, setIsGeneratingTones] = useState(false);
+  const [wordGoal, setWordGoal] = useState(0);
+  const [versionHistory, setVersionHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [mobileTab, setMobileTab] = useState("write");
 
   const analyzeTextHandler = useCallback(async () => {
     if (!text.trim()) return;
     setIsAnalyzing(true);
     setSuggestions([]);
     setScore(null);
+
+    // Save to version history
+    setVersionHistory(prev => [{
+      text,
+      timestamp: new Date().toISOString(),
+      score: null
+    }, ...prev.slice(0, 9)]); // Keep last 10
 
     try {
       const result = await analyzeText(text, writingContext);
@@ -44,27 +81,19 @@ export default function WritingAssistant() {
 
       setSuggestions(enriched);
       setScore(result.score ?? null);
+
+      // Update the latest history entry with score
+      setVersionHistory(prev => prev.map((entry, i) =>
+        i === 0 ? { ...entry, score: result.score ?? null } : entry
+      ));
     } catch (error) {
-      console.error("Error analyzing text:", error);
+      logger.error("Error analyzing text", error);
       // You could show an error toast here
     } finally {
       setIsAnalyzing(false);
     }
   }, [text, writingContext]);
 
-  const handleGenerateReplies = useCallback(async () => {
-    setIsGeneratingReplies(true);
-    setReplies([]);
-
-    try {
-      const result = await generateReplies(text, writingContext);
-      setReplies(result.replies || []);
-    } catch (error) {
-      console.error("Error generating replies:", error);
-    } finally {
-      setIsGeneratingReplies(false);
-    }
-  }, [text, writingContext]);
 
   const handleGenerateTones = useCallback(async () => {
     if (!text.trim()) return;
@@ -75,7 +104,7 @@ export default function WritingAssistant() {
       const result = await generateTones(text, writingContext);
       setToneVariations(result.replies || []);
     } catch (error) {
-      console.error("Error generating tones:", error);
+      logger.error("Error generating tones", error);
     } finally {
       setIsGeneratingTones(false);
     }
@@ -99,7 +128,6 @@ export default function WritingAssistant() {
     setText("");
     setSuggestions([]);
     setScore(null);
-    setReplies([]);
     setToneVariations([]);
   }, []);
 
@@ -107,6 +135,22 @@ export default function WritingAssistant() {
     handleClear();
     setWritingContext(DEFAULT_CONTEXT);
   }, [handleClear]);
+
+  const handleExport = useCallback(() => {
+    // Simple export: copy to clipboard
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Text copied to clipboard!");
+    });
+  }, [text]);
+
+  const handleShowHistory = useCallback(() => {
+    setShowHistory(!showHistory);
+  }, [showHistory]);
+
+  const restoreVersion = useCallback((version) => {
+    setText(version.text);
+    setShowHistory(false);
+  }, []);
 
   const grammarCount = suggestions.filter((s) => s.category === "grammar").length;
   const styleCount = suggestions.filter((s) => s.category === "style").length;
@@ -121,11 +165,35 @@ export default function WritingAssistant() {
         isAnalyzing={isAnalyzing}
         hasText={text.trim().length > 0}
         score={score}
+        onExport={handleExport}
+        onShowHistory={handleShowHistory}
       />
+
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex border-b border-border">
+        <button
+          onClick={() => setMobileTab("write")}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${mobileTab === "write" ? "text-teal-600 border-b-2 border-teal-600" : "text-muted-foreground"}`}
+        >
+          Write
+        </button>
+        <button
+          onClick={() => setMobileTab("context")}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${mobileTab === "context" ? "text-teal-600 border-b-2 border-teal-600" : "text-muted-foreground"}`}
+        >
+          Context
+        </button>
+        <button
+          onClick={() => setMobileTab("suggestions")}
+          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${mobileTab === "suggestions" ? "text-teal-600 border-b-2 border-teal-600" : "text-muted-foreground"}`}
+        >
+          Suggestions
+        </button>
+      </div>
 
       <div className="flex-1 flex min-h-0">
         {/* Left Sidebar – Writing Context */}
-        <div className="w-[260px] shrink-0 border-r border-border/60 bg-card/40 overflow-y-auto">
+        <div className="hidden md:block w-[260px] shrink-0 border-r border-border/60 bg-card/40 overflow-y-auto">
           <div className="px-4 pt-3 pb-1">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Writing Context
@@ -135,7 +203,7 @@ export default function WritingAssistant() {
         </div>
 
         {/* Center – Editor */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${mobileTab !== "write" ? "hidden md:flex" : ""}`}>
           {score !== null && (
             <ScoreOverview
               score={score}
@@ -145,38 +213,64 @@ export default function WritingAssistant() {
             />
           )}
           <TextEditor text={text} setText={setText} />
-          <div className="px-6 py-3 border-t border-border/40 flex items-center justify-between gap-3">
-            <WritingStats text={text} />
-            <Button
-              onClick={handleGenerateReplies}
-              disabled={isGeneratingReplies}
-              size="sm"
-              className="h-8 text-xs gap-1.5 shrink-0 bg-primary shadow-md shadow-primary/20"
-            >
-              {isGeneratingReplies ? (
-                <div className="h-3 w-3 border border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {isGeneratingReplies ? "Generating..." : "Generate Full Replies"}
-            </Button>
+
+          {/* Tone Detector */}
+          {text.trim() && (
+            <div className="px-6 py-3 border-t border-border/40">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your writing sounds:</span>
+                <span className="text-sm font-medium text-teal-600">
+                  {detectTone(text)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Version History */}
+          {showHistory && versionHistory.length > 0 && (
+            <div className="px-6 py-3 border-t border-border/40">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Version History</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {versionHistory.map((version, index) => (
+                  <button
+                    key={index}
+                    onClick={() => restoreVersion(version)}
+                    className="w-full text-left p-2 rounded border border-border bg-background hover:border-teal-300 transition-colors"
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(version.timestamp).toLocaleString()}
+                      {version.score !== null && ` - Score: ${version.score}`}
+                    </p>
+                    <p className="text-xs text-foreground truncate">{version.text.substring(0, 50)}...</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="px-6 py-3 border-t border-border/40">
+            <WritingStats text={text} wordGoal={wordGoal} onGoalChange={setWordGoal} />
           </div>
         </div>
 
+        {/* Mobile Context Panel */}
+        <div className={`md:hidden flex-1 ${mobileTab !== "context" ? "hidden" : ""}`}>
+          <ContextPanel context={writingContext} onChange={setWritingContext} />
+        </div>
+
         {/* Right Sidebar – AI Suggestions */}
-        <div className="w-[360px] xl:w-[400px] shrink-0">
+        <div className={`w-[360px] xl:w-[400px] shrink-0 ${mobileTab !== "suggestions" ? "hidden md:block" : ""}`}>
           <SuggestionPanel
             suggestions={suggestions}
             onApply={handleApply}
             onDismiss={handleDismiss}
             isAnalyzing={isAnalyzing}
-            replies={replies}
-            isGeneratingReplies={isGeneratingReplies}
-            onGenerateReplies={handleGenerateReplies}
             hasText={text.trim().length > 0}
             toneVariations={toneVariations}
             isGeneratingTones={isGeneratingTones}
             onGenerateTones={handleGenerateTones}
+            text={text}
+            writingContext={writingContext}
           />
         </div>
       </div>

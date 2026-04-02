@@ -1,3 +1,6 @@
+import { analyzeTextSchema, generateSchema } from './validation';
+import { logger } from './logger';
+
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 /**
@@ -21,7 +24,9 @@ export const buildContextBlock = (writingContext) => {
  * @returns {Promise<{score: number, suggestions: Array}>}
  */
 export const analyzeText = async (text, writingContext = {}) => {
-  const contextBlock = buildContextBlock(writingContext);
+  // Validate inputs
+  const validatedData = analyzeTextSchema.parse({ text, writingContext });
+  const contextBlock = buildContextBlock(validatedData.writingContext);
 
   const systemPrompt = `You are a professional writing editor. Analyze the following text for grammar, style, and clarity improvements. Return detailed, actionable suggestions.${contextBlock}
 
@@ -37,18 +42,18 @@ Be thorough but practical. Focus on real improvements, not nitpicking.`;
 
   const userPrompt = `TEXT TO ANALYZE:
 """
-${text}
+${validatedData.text}
 """`;
 
   // Check which AI provider to use
   const useOllama = import.meta.env.VITE_USE_OLLAMA === 'true';
 
   if (useOllama) {
-    return analyzeWithOllama(text, systemPrompt);
+    return analyzeWithOllama(validatedData.text, systemPrompt);
   }
 
   // Default: Use OpenAI via fetch
-  return analyzeWithOpenAI(text, systemPrompt, userPrompt);
+  return analyzeWithOpenAI(validatedData.text, systemPrompt, userPrompt);
 };
 
 /**
@@ -104,7 +109,7 @@ const analyzeWithOpenAI = async (text, systemPrompt, userPrompt) => {
     // If no JSON found, try parsing the whole content
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error analyzing text with OpenAI:', error);
+    logger.error('Error analyzing text with OpenAI', error);
     throw new Error('Failed to analyze text. Please try again.');
   }
 };
@@ -174,7 +179,7 @@ Return your response as JSON with this exact structure:
     // If no JSON found, try parsing the whole content
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error analyzing text with Ollama:', error);
+    logger.error('Error analyzing text with Ollama', error);
     throw new Error('Failed to analyze text with Ollama. Please check your Ollama server is running.');
   }
 };
@@ -186,8 +191,10 @@ Return your response as JSON with this exact structure:
  * @returns {Promise<{replies: Array}>}
  */
 export const generateReplies = async (text, writingContext = {}) => {
-  const contextBlock = buildContextBlock(writingContext);
-  const hasUserText = text.trim().length > 0;
+  // Validate inputs
+  const validatedData = generateSchema.parse({ text, writingContext });
+  const contextBlock = buildContextBlock(validatedData.writingContext);
+  const hasUserText = validatedData.text ? validatedData.text.trim().length > 0 : false;
 
   const systemPrompt = hasUserText
     ? `You are an expert writing coach. The user has written a rough draft. Refactor and improve it into 4 distinct ready-to-send versions, each matching the desired tone/style described in the context.${contextBlock}
@@ -200,17 +207,17 @@ Generate 4 distinct full reply versions with tones: Formal, Friendly, Confident,
   const userPrompt = hasUserText
     ? `USER'S ROUGH TEXT:
 """
-${text}
+${validatedData.text}
 """`
     : `Create 4 distinct reply versions based on the context provided above.`;
 
   const useOllama = import.meta.env.VITE_USE_OLLAMA === 'true';
 
   if (useOllama) {
-    return generateRepliesWithOllama(text, systemPrompt);
+    return generateRepliesWithOllama(validatedData.text, systemPrompt);
   }
 
-  return generateRepliesWithOpenAI(text, systemPrompt, userPrompt);
+  return generateRepliesWithOpenAI(validatedData.text, systemPrompt, userPrompt);
 };
 
 /**
@@ -261,7 +268,7 @@ const generateRepliesWithOpenAI = async (text, systemPrompt, userPrompt) => {
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error generating replies with OpenAI:', error);
+    logger.error('Error generating replies with OpenAI', error);
     throw new Error('Failed to generate replies. Please try again.');
   }
 };
@@ -318,7 +325,7 @@ const generateRepliesWithOllama = async (text, systemPrompt) => {
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error generating replies with Ollama:', error);
+    logger.error('Error generating replies with Ollama', error);
     throw new Error('Failed to generate replies with Ollama. Please check your Ollama server is running.');
   }
 };
@@ -330,7 +337,9 @@ const generateRepliesWithOllama = async (text, systemPrompt) => {
  * @returns {Promise<{replies: Array}>}
  */
 export const generateTones = async (text, writingContext = {}) => {
-  const contextBlock = buildContextBlock(writingContext);
+  // Validate inputs
+  const validatedData = generateSchema.parse({ text, writingContext });
+  const contextBlock = buildContextBlock(validatedData.writingContext);
 
   const systemPrompt = `You are an expert writing coach. Rewrite the following text in 4 different tones while keeping the same core message.${contextBlock}
 
@@ -338,7 +347,7 @@ Provide 4 tone variations: Professional, Casual, Enthusiastic, Empathetic.`;
 
   const userPrompt = `ORIGINAL TEXT:
 """
-${text}
+${validatedData.text}
 """
 
 Return your response as JSON with this exact structure:
@@ -354,10 +363,10 @@ Return your response as JSON with this exact structure:
   const useOllama = import.meta.env.VITE_USE_OLLAMA === 'true';
 
   if (useOllama) {
-    return generateTonesWithOllama(text, systemPrompt);
+    return generateTonesWithOllama(validatedData.text, systemPrompt);
   }
 
-  return generateTonesWithOpenAI(text, systemPrompt, userPrompt);
+  return generateTonesWithOpenAI(validatedData.text, systemPrompt, userPrompt);
 };
 
 /**
@@ -400,7 +409,7 @@ const generateTonesWithOpenAI = async (text, systemPrompt, userPrompt) => {
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error generating tones with OpenAI:', error);
+    logger.error('Error generating tones with OpenAI', error);
     throw new Error('Failed to generate tone variations. Please try again.');
   }
 };
@@ -457,7 +466,7 @@ const generateTonesWithOllama = async (text, systemPrompt) => {
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('Error generating tones with Ollama:', error);
+    logger.error('Error generating tones with Ollama', error);
     throw new Error('Failed to generate tone variations with Ollama. Please check your Ollama server is running.');
   }
 };

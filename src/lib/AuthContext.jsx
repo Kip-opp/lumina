@@ -1,13 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { 
-  supabase, 
-  getCurrentUser, 
-  signInWithEmail, 
+import {
+  supabase,
+  getCurrentUser,
+  signInWithEmail,
   signUpWithEmail,
   signInWithOAuth,
   signOut,
-  onAuthStateChange 
+  onAuthStateChange
 } from './supabase';
+import { loginSchema, signupSchema } from './validation';
+import { logger } from './logger';
 
 const AuthContext = createContext();
 
@@ -50,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error('User auth check failed:', error);
+      logger.error('User auth check failed', error);
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -61,16 +63,25 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setAuthError(null);
-      const { data, error } = await signInWithEmail(email, password);
+      // Validate inputs
+      const validatedData = loginSchema.parse({ email, password });
+      const { data, error } = await signInWithEmail(validatedData.email, validatedData.password);
       if (error) throw error;
       setUser(data.user);
       setIsAuthenticated(true);
       return data;
     } catch (error) {
-      setAuthError({
-        type: 'login_failed',
-        message: error.message || 'Login failed'
-      });
+      if (error.name === 'ZodError') {
+        setAuthError({
+          type: 'validation_error',
+          message: error.errors[0].message
+        });
+      } else {
+        setAuthError({
+          type: 'login_failed',
+          message: 'Login failed. Please check your credentials.'
+        });
+      }
       throw error;
     }
   };
@@ -78,14 +89,23 @@ export const AuthProvider = ({ children }) => {
   const signup = async (email, password) => {
     try {
       setAuthError(null);
-      const { data, error } = await signUpWithEmail(email, password);
+      // Validate inputs
+      const validatedData = signupSchema.parse({ email, password });
+      const { data, error } = await signUpWithEmail(validatedData.email, validatedData.password);
       if (error) throw error;
       return data;
     } catch (error) {
-      setAuthError({
-        type: 'signup_failed',
-        message: error.message || 'Signup failed'
-      });
+      if (error.name === 'ZodError') {
+        setAuthError({
+          type: 'validation_error',
+          message: error.errors[0].message
+        });
+      } else {
+        setAuthError({
+          type: 'signup_failed',
+          message: 'Signup failed. Please try again.'
+        });
+      }
       throw error;
     }
   };
@@ -115,7 +135,7 @@ export const AuthProvider = ({ children }) => {
         window.location.href = '/';
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error', error);
     }
   };
 
