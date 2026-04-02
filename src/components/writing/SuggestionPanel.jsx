@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import SuggestionCard from "./SuggestionCard";
 import ReplyIdeas from "./ReplyIdeas";
+import { generateReplies } from "@/lib/ai-service";
 
 const TABS = [
   { key: "all", label: "All" },
@@ -14,10 +15,28 @@ const TABS = [
 
 export default function SuggestionPanel({
   suggestions, onApply, onDismiss, isAnalyzing,
-  replies, isGeneratingReplies, onGenerateReplies, hasText,
-  toneVariations, isGeneratingTones, onGenerateTones,
+  hasText, toneVariations, isGeneratingTones, onGenerateTones,
+  text, writingContext,
 }) {
   const [tab, setTab] = useState("all");
+  const [replies, setReplies] = useState([]);
+  const [isGeneratingReplies, setIsGeneratingReplies] = useState(false);
+
+  // Disable tabs if no text
+  const disabled = !hasText;
+
+  const handleGenerateReplies = async () => {
+    setIsGeneratingReplies(true);
+    setReplies([]);
+    try {
+      const result = await generateReplies(text, writingContext);
+      setReplies(result.replies || []);
+    } catch (error) {
+      console.error("Error generating replies:", error);
+    } finally {
+      setIsGeneratingReplies(false);
+    }
+  };
 
   const fixes = suggestions.filter((s) => s.category === "grammar");
   const rewrites = suggestions.filter((s) => s.category === "style" || s.category === "clarity");
@@ -33,10 +52,14 @@ export default function SuggestionPanel({
             return (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => !disabled && setTab(t.key)}
+                disabled={disabled}
+                title={disabled ? "Start writing to unlock" : ""}
                 className={`shrink-0 px-2.5 py-2 text-[11px] font-medium border-b-2 transition-all whitespace-nowrap ${
-                  tab === t.key
-                    ? "border-primary text-primary"
+                  disabled
+                    ? "border-transparent text-muted-foreground/50 cursor-not-allowed"
+                    : tab === t.key
+                    ? "border-teal-600 text-teal-600"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -61,14 +84,40 @@ export default function SuggestionPanel({
               </div>
             )}
             {!isAnalyzing && tabItems.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center mb-3">
-                  <Sparkles className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground/70">No suggestions yet</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-[180px]">
-                  Click "Analyze Writing" to get AI-powered feedback
-                </p>
+              <div className="space-y-3">
+                {!disabled && (
+                  <>
+                    <p className="text-xs text-muted-foreground text-center">Example of what you'll see:</p>
+                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                      <div className="flex items-start gap-2">
+                        <div className="h-6 w-6 rounded bg-teal-100 flex items-center justify-center flex-shrink-0">
+                          <Sparkles className="h-3 w-3 text-teal-700" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-foreground">Consider using active voice</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Change "The report was written by me" to "I wrote the report" for more direct communication.
+                          </p>
+                          <div className="flex gap-2 mt-2">
+                            <button className="text-xs bg-teal-600 text-white px-2 py-1 rounded">Apply</button>
+                            <button className="text-xs border border-border px-2 py-1 rounded">Dismiss</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {disabled && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center mb-3">
+                      <Sparkles className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground/70">Start writing to unlock AI suggestions</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[180px]">
+                      Type at least 10 words to get personalized feedback
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             <AnimatePresence mode="popLayout">
@@ -84,7 +133,7 @@ export default function SuggestionPanel({
           <ReplyIdeas
             replies={replies}
             isGenerating={isGeneratingReplies}
-            onGenerate={onGenerateReplies}
+            onGenerate={handleGenerateReplies}
             hasText={hasText}
           />
         )}

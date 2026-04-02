@@ -1,7 +1,7 @@
-import { FileText, Sparkles, RotateCcw, FilePlus } from "lucide-react";
+import { FileText, Sparkles, RotateCcw, FilePlus, Download, History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
-export default function Header({ onAnalyze, onClear, onNewDoc, isAnalyzing, hasText, score }) {
+export default function Header({ onAnalyze, onClear, onNewDoc, isAnalyzing, hasText, score, onExport, onShowHistory }) {
   const getScoreColor = (s) => {
     if (s >= 80) return "text-emerald-600 bg-emerald-50 border-emerald-200";
     if (s >= 60) return "text-amber-600 bg-amber-50 border-amber-200";
@@ -44,9 +44,17 @@ export default function Header({ onAnalyze, onClear, onNewDoc, isAnalyzing, hasT
             Clear
           </Button>
         )}
-        <Button onClick={onAnalyze} disabled={!hasText || isAnalyzing} size="sm" className="h-8 text-xs gap-1.5 bg-primary shadow-sm shadow-primary/20">
+        <Button onClick={onExport} disabled={!hasText} variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+          <Download className="h-3.5 w-3.5" />
+          Export
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onShowHistory} disabled={!hasText} className="h-8 text-xs gap-1.5 text-muted-foreground">
+          <History className="h-3.5 w-3.5" />
+          History
+        </Button>
+        <Button onClick={onAnalyze} disabled={!hasText || isAnalyzing} size="sm" className="h-8 text-xs gap-1.5 bg-teal-600 hover:bg-teal-700 shadow-sm shadow-teal-600/20">
           {isAnalyzing ? (
-            <div className="h-3.5 w-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <Sparkles className="h-3.5 w-3.5" />
           )}

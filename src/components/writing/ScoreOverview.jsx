@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { CheckCircle, TrendingUp, Zap } from "lucide-react";
 
 export default function ScoreOverview({ score, grammarCount, styleCount, clarityCount }) {
   if (score === null) return null;
