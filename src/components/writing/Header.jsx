@@ -22,7 +22,7 @@ export default function Header({ onAnalyze, onClear, onNewDoc, isAnalyzing, hasT
           <FileText className="h-4 w-4 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-bold tracking-tight leading-none">WriteFlow</h1>
+          <h1 className="text-sm font-bold tracking-tight leading-none">Lumina</h1>
           <p className="text-[10px] text-muted-foreground leading-none mt-0.5">AI Writing Assistant</p>
         </div>
       </div>

@@ -1,12 +1,14 @@
 import { useState, useCallback } from "react";
 import { analyzeText, generateTones } from "@/lib/ai-service";
 import { logger } from "@/lib/logger";
+import { useAuth } from "@/lib/AuthContext";
 import Header from "../components/writing/Header";
 import TextEditor from "../components/writing/TextEditor";
 import WritingStats from "../components/writing/WritingStats";
 import SuggestionPanel from "../components/writing/SuggestionPanel";
 import ScoreOverview from "../components/writing/ScoreOverview";
 import ContextPanel from "../components/writing/ContextPanel";
+import LoginModal from "../components/LoginModal";
 
 const DEFAULT_CONTEXT = {
   writingType: "",
@@ -45,6 +47,7 @@ function detectTone(text) {
 }
 
 export default function WritingAssistant() {
+  const { isAuthenticated } = useAuth();
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -57,9 +60,17 @@ export default function WritingAssistant() {
   const [versionHistory, setVersionHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [mobileTab, setMobileTab] = useState("write");
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const analyzeTextHandler = useCallback(async () => {
     if (!text.trim()) return;
+
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+
     setIsAnalyzing(true);
     setSuggestions([]);
     setScore(null);
@@ -92,7 +103,7 @@ export default function WritingAssistant() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [text, writingContext]);
+  }, [text, writingContext, isAuthenticated]);
 
 
   const handleGenerateTones = useCallback(async () => {
@@ -274,6 +285,11 @@ export default function WritingAssistant() {
           />
         </div>
       </div>
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </div>
   );
 }
