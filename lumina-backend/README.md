@@ -1,127 +1,130 @@
 # Lumina Backend
 
-A robust Express.js backend for the Lumina AI Writing Assistant that handles secure API key management, OAuth flows for external services, and message ingestion.
+This is the backend service for the Lumina writing assistant application.
 
-## Features
+## Overview
 
-- **Secure API Key Management**: All API keys are stored server-side, never exposed to the frontend
-- **OAuth Integration**: Connect Gmail, Twitter, LinkedIn, and Slack accounts securely
-- **Message Ingestion**: Import emails, tweets, posts, and messages for AI analysis
-- **AI Proxy Service**: Secure proxy for OpenAI/Ollama API calls
-- **Supabase Integration**: User authentication and data persistence
+The Lumina backend provides API endpoints for OAuth integrations, AI processing, and other services used by the Lumina frontend.
 
-## Tech Stack
+## Prerequisites
 
-- **Backend**: Node.js, Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **External APIs**: Google (Gmail), Twitter, LinkedIn, Slack
-- **AI**: OpenAI API or Ollama (local LLM)
+- Node.js (version 18 or higher)
+- npm or yarn
+- Supabase account and project
 
 ## Setup
 
-1. **Install Dependencies**
+1. Clone the repository and navigate to the `lumina-backend` directory:
+
+   ```bash
+   cd lumina-backend
+   ```
+
+2. Install dependencies:
+
    ```bash
    npm install
    ```
 
-2. **Environment Variables**
-   Copy `.env` and fill in your API keys and configuration:
-   ```bash
-   cp .env .env.local
+3. Create a `.env` file based on `.env.example` (if available) or copy the following template:
+
+   ```env
+   # Server Configuration
+   PORT=3001
+   NODE_ENV=development
+   FRONTEND_URL=http://localhost:5173
+
+   # Supabase Configuration
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+   # OAuth Provider Configurations
+   # Google OAuth
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/google/callback
+
+   # Twitter OAuth
+   TWITTER_CLIENT_ID=your-twitter-client-id
+   TWITTER_CLIENT_SECRET=your-twitter-client-secret
+   TWITTER_REDIRECT_URI=http://localhost:3001/api/oauth/twitter/callback
+
+   # LinkedIn OAuth
+   LINKEDIN_CLIENT_ID=your-linkedin-client-id
+   LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
+   LINKEDIN_REDIRECT_URI=http://localhost:3001/api/oauth/linkedin/callback
+
+   # Slack OAuth
+   SLACK_CLIENT_ID=your-slack-client-id
+   SLACK_CLIENT_SECRET=your-slack-client-secret
+   SLACK_REDIRECT_URI=http://localhost:3001/api/oauth/slack/callback
+
+   # AI Provider API Keys (optional, if using backend AI processing)
+   OPENAI_API_KEY=your-openai-api-key
+   ANTHROPIC_API_KEY=your-anthropic-api-key
    ```
 
-3. **Database Setup**
-   Run the SQL schema in your Supabase project:
-   ```sql
-   -- Copy contents from database-schema.sql
-   ```
+4. **Configure Supabase**:
+   - Create a new project at [https://supabase.com](https://supabase.com)
+   - Get your project URL and API keys from the project settings
+   - In your Supabase dashboard:
+     - Go to Authentication > Settings
+     - Disable "Enable email confirmations" if you want users to sign up without email verification
+     - Configure OAuth providers (Google, GitHub, etc.) in Authentication > Providers if using OAuth login
+     - Set up SMTP settings in Authentication > Settings if you want to send confirmation emails
 
-4. **Start Development Server**
+5. Start the development server:
+
    ```bash
    npm run dev
    ```
 
+   The server will run on `http://localhost:3001`.
+
 ## API Endpoints
 
-### Authentication
+- `GET /health` - Health check endpoint
 - `GET /api/auth/verify` - Verify user authentication
-
-### Gmail Integration
-- `GET /api/oauth/gmail/auth` - Initiate Gmail OAuth flow
-- `GET /api/oauth/gmail/callback` - Handle Gmail OAuth callback
-- `GET /api/gmail/emails` - Get user's Gmail messages
-
-### Twitter Integration
-- `GET /api/oauth/twitter/auth` - Initiate Twitter OAuth flow
-- `GET /api/oauth/twitter/callback` - Handle Twitter OAuth callback
-- `GET /api/twitter/tweets` - Get user's tweets
-
-### LinkedIn Integration
-- `GET /api/oauth/linkedin/auth` - Initiate LinkedIn OAuth flow
-- `GET /api/oauth/linkedin/callback` - Handle LinkedIn OAuth callback
-- `GET /api/linkedin/posts` - Get user's LinkedIn posts
-
-### Slack Integration
-- `GET /api/oauth/slack/auth` - Initiate Slack OAuth flow
-- `GET /api/oauth/slack/callback` - Handle Slack OAuth callback
-- `GET /api/slack/messages` - Get user's Slack messages
-
-### AI Services
-- `POST /api/ai/analyze` - Analyze text with AI
-- `POST /api/ai/generate-tones` - Generate tone variations
-
-## Security
-
-- All external API keys are stored server-side only
-- User authentication required for all endpoints
-- OAuth tokens encrypted and stored securely
-- CORS configured for frontend domain only
-- Rate limiting implemented
-- Helmet.js for security headers
-
-## Development
-
-```bash
-# Development with auto-restart
-npm run dev
-
-# Production
-npm start
-
-# Linting
-npm run lint
-```
-
-## Project Structure
-
-```
-lumina-backend/
-├── src/
-│   ├── routes/          # API route handlers
-│   ├── controllers/     # Business logic controllers
-│   ├── middleware/      # Express middleware
-│   ├── services/        # External API integrations
-│   └── utils/           # Utility functions
-├── database-schema.sql  # Supabase database schema
-├── .env                 # Environment variables (configure)
-└── README.md
-```
+- `POST /api/oauth/google` - Google OAuth
+- `POST /api/oauth/twitter` - Twitter OAuth
+- `POST /api/oauth/linkedin` - LinkedIn OAuth
+- `POST /api/oauth/slack` - Slack OAuth
+- `POST /api/ai/analyze` - AI text analysis
+- `POST /api/ai/generate` - AI text generation
 
 ## Environment Variables
 
-See `.env` file for all required environment variables. Key variables include:
+See the `.env` template above for all required environment variables.
 
-- Supabase URL and service role key
-- OpenAI API key
-- OAuth client IDs and secrets for each service
-- Frontend URL for CORS
-- Server port and environment
+## Development
+
+- `npm run dev` - Start development server with nodemon
+- `npm run start` - Start production server
+- `npm test` - Run tests (placeholder)
+
+## Deployment
+
+1. Set `NODE_ENV=production` in your environment
+2. Ensure all OAuth redirect URIs are updated to your production domain
+3. Deploy to your preferred hosting service (Heroku, Vercel, AWS, etc.)
+
+## Troubleshooting
+
+### Authentication Issues
+
+- Ensure Supabase credentials are correct
+- Check that email confirmations are disabled in Supabase if not using SMTP
+- Verify OAuth provider configurations in Supabase dashboard
+
+### OAuth Errors
+
+- Confirm redirect URIs match exactly in both code and provider settings
+- Check that client IDs and secrets are correct
+- Ensure CORS is configured to allow your frontend domain
 
 ## Contributing
 
-1. Follow the existing code structure
-2. Add proper error handling
-3. Include JSDoc comments for new functions
-4. Test OAuth flows thoroughly
-5. Never commit API keys or sensitive data
+1. Follow the existing code style
+2. Add tests for new features
+3. Update documentation as needed
